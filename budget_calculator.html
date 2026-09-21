@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เครื่องคำนวณรายรับ-รายจ่าย</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b0b0b;color:#eee;font-family:Arial,"Tahoma",sans-serif}
+.container{max-width:1200px;margin:auto;padding:20px}
+h1{margin:0 0 6px;color:#ffd400;font-size:30px}
+.sub{color:#aaa;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:#151515;border:1px solid #292929;border-radius:14px;padding:18px;box-shadow:0 4px 18px #0006}
+.card h2{margin:0 0 14px;font-size:20px}
+.income h2{color:#52e06a}.expense h2{color:#ff6262}
+.row{display:grid;grid-template-columns:1fr 150px 95px 45px;gap:8px;margin-bottom:9px}
+input,select,button{font:inherit;border-radius:8px;border:1px solid #333;background:#0e0e0e;color:#fff;padding:10px}
+input:focus,select:focus{outline:2px solid #ffd400;border-color:#ffd400}
+button{cursor:pointer;background:#222}
+button:hover{background:#333}
+.add{width:100%;margin-top:4px;color:#ffd400;border-color:#6b5b00}
+.del{color:#ff6666;padding:6px}
+.summary{margin-top:16px;background:#111;border:1px solid #333;border-radius:14px;padding:20px}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{background:#181818;border-radius:12px;padding:16px}
+.stat .label{color:#aaa;font-size:14px}.stat .value{font-size:26px;font-weight:bold;margin-top:5px}
+.yellow{color:#ffd400}.green{color:#52e06a}.red{color:#ff6262}
+.details{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.bar{height:12px;background:#292929;border-radius:99px;overflow:hidden;margin-top:6px}
+.fill{height:100%;background:#ffd400}
+.item{margin:10px 0}.itemline{display:flex;justify-content:space-between;gap:10px}
+.note{color:#999;font-size:13px;line-height:1.5}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.actions button{padding:11px 16px}
+@media(max-width:800px){.grid,.details{grid-template-columns:1fr}.summary-grid{grid-template-columns:1fr 1fr}.row{grid-template-columns:1fr 125px 40px}}
+@media(max-width:480px){.container{padding:12px}.summary-grid{grid-template-columns:1fr}.row{grid-template-columns:1fr 105px 38px}h1{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>💰 เครื่องคำนวณรายรับ - รายจ่าย</h1>
+  <div class="sub">กรอกข้อมูลได้ทั้งรายวัน รายสัปดาห์ รายเดือน หรือรายปี ระบบจะแปลงเป็นยอดต่อเดือนให้อัตโนมัติ</div>
+
+  <div class="grid">
+    <div class="card income">
+      <h2>🟢 รายรับ</h2>
+      <div id="incomeList"></div>
+      <button class="add" onclick="addRow('income')">＋ เพิ่มรายการรายรับ</button>
+    </div>
+
+    <div class="card expense">
+      <h2>🔴 รายจ่าย</h2>
+      <div id="expenseList"></div>
+      <button class="add" onclick="addRow('expense')">＋ เพิ่มรายการรายจ่าย</button>
+    </div>
+  </div>
+
+  <div class="summary">
+    <h2 style="margin-top:0">📊 สรุปประจำเดือน</h2>
+    <div class="summary-grid">
+      <div class="stat"><div class="label">รายรับทั้งหมด / เดือน</div><div id="totalIncome" class="value green">฿0</div></div>
+      <div class="stat"><div class="label">รายจ่ายทั้งหมด / เดือน</div><div id="totalExpense" class="value red">฿0</div></div>
+      <div class="stat"><div class="label">เงินเหลือ / เดือน</div><div id="balance" class="value yellow">฿0</div></div>
+      <div class="stat"><div class="label">เงินเหลือ / ปี</div><div id="yearBalance" class="value yellow">฿0</div></div>
+    </div>
+
+    <div class="details">
+      <div class="card">
+        <h2>📅 ค่าเฉลี่ยต่อวัน</h2>
+        <div class="item"><div class="itemline"><span>รายรับเฉลี่ย / วัน</span><b id="dailyIncome">฿0</b></div></div>
+        <div class="item"><div class="itemline"><span>รายจ่ายเฉลี่ย / วัน</span><b id="dailyExpense">฿0</b></div></div>
+        <div class="item"><div class="itemline"><span>เหลือเฉลี่ย / วัน</span><b id="dailyBalance" class="yellow">฿0</b></div></div>
+        <p class="note">ใช้จำนวนวันของเดือนที่เลือกด้านล่างในการคำนวณ</p>
+      </div>
+
+      <div class="card">
+        <h2>📈 สัดส่วนรายจ่าย</h2>
+        <div id="breakdown"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2>⚙️ ตั้งค่าการคำนวณ</h2>
+    <label>จำนวนวันในเดือน
+      <select id="days" onchange="calculate()">
+        <option value="28">28 วัน</option><option value="29">29 วัน</option>
+        <option value="30">30 วัน</option><option value="31" selected>31 วัน</option>
+      </select>
+    </label>
+    <div class="actions">
+      <button onclick="saveData()">💾 บันทึกข้อมูล</button>
+      <button onclick="loadData()">↻ โหลดข้อมูลที่บันทึก</button>
+      <button onclick="resetData()">🗑 รีเซ็ตทั้งหมด</button>
+      <button onclick="exportCSV()">📥 Export CSV</button>
+    </div>
+    <p class="note">ข้อมูลถูกเก็บไว้ใน Browser ของเครื่องนี้ ไม่ได้ส่งไปที่เซิร์ฟเวอร์</p>
+  </div>
+</div>
+
+<script>
+const defaults={
+ income:[
+  ["รายได้หลัก","", "month"],
+  ["รายได้จากงานเสริม","", "month"],
+  ["รายได้ธุรกิจ","", "day"],
+  ["รายได้อื่น ๆ","", "month"]
+ ],
+ expense:[
+  ["ค่าเช่าบ้าน","", "month"],
+  ["ค่าไฟ","", "month"],
+  ["ค่าน้ำ","", "month"],
+  ["ค่าอินเทอร์เน็ต","", "month"],
+  ["ค่าโทรศัพท์","", "month"],
+  ["ค่าอาหาร","", "day"],
+  ["ค่าเดินทาง","", "day"],
+  ["เงินให้ครอบครัว","", "month"],
+  ["หนี้ / บัตรเครดิต","", "month"],
+  ["ค่าใช้จ่ายธุรกิจ","", "month"],
+  ["เงินลงทุน","", "month"],
+  ["เงินออม","", "month"],
+  ["อื่น ๆ","", "month"]
+ ]
+};
+
+function money(n){return "฿"+Math.round(n).toLocaleString("th-TH")}
+function monthly(v,type){
+ v=Number(v)||0;
+ if(type==="day") return v*Number(document.getElementById("days").value);
+ if(type==="week") return v*4.345;
+ if(type==="year") return v/12;
+ return v;
+}
+function addRow(kind,data=["รายการใหม่","","month"]){
+ const box=document.getElementById(kind+"List");
+ const row=document.createElement("div"); row.className="row";
+ row.innerHTML=`
+ <input class="name" value="${escapeHtml(data[0])}" placeholder="ชื่อรายการ">
+ <input class="amount" type="number" min="0" step="0.01" value="${data[1]}" placeholder="จำนวนเงิน">
+ <select class="type">
+   <option value="day" ${data[2]==="day"?"selected":""}>/ วัน</option>
+   <option value="week" ${data[2]==="week"?"selected":""}>/ สัปดาห์</option>
+   <option value="month" ${data[2]==="month"?"selected":""}>/ เดือน</option>
+   <option value="year" ${data[2]==="year"?"selected":""}>/ ปี</option>
+ </select>
+ <button class="del" title="ลบ" onclick="this.parentElement.remove();calculate()">×</button>`;
+ box.appendChild(row);
+ row.querySelectorAll("input,select").forEach(x=>x.addEventListener("input",calculate));
+}
+function escapeHtml(s){return String(s).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll('"',"&quot;")}
+function getRows(kind){
+ return [...document.querySelectorAll("#"+kind+"List .row")].map(r=>({
+  name:r.querySelector(".name").value||"ไม่ระบุ",
+  amount:Number(r.querySelector(".amount").value)||0,
+  type:r.querySelector(".type").value,
+  monthly:monthly(r.querySelector(".amount").value,r.querySelector(".type").value)
+ }));
+}
+function calculate(){
+ const inc=getRows("income"), exp=getRows("expense");
+ const ti=inc.reduce((a,b)=>a+b.monthly,0), te=exp.reduce((a,b)=>a+b.monthly,0), bal=ti-te;
+ const days=Number(document.getElementById("days").value);
+ totalIncome.textContent=money(ti); totalExpense.textContent=money(te); balance.textContent=money(bal); yearBalance.textContent=money(bal*12);
+ dailyIncome.textContent=money(ti/days); dailyExpense.textContent=money(te/days); dailyBalance.textContent=money(bal/days);
+ balance.className="value "+(bal>=0?"green":"red"); dailyBalance.className=bal>=0?"yellow":"red";
+ const max=Math.max(te,1);
+ breakdown.innerHTML=exp.filter(x=>x.monthly>0).sort((a,b)=>b.monthly-a.monthly).map(x=>`
+ <div class="item"><div class="itemline"><span>${escapeHtml(x.name)}</span><b>${money(x.monthly)} (${(x.monthly/te*100).toFixed(1)}%)</b></div>
+ <div class="bar"><div class="fill" style="width:${Math.min(100,x.monthly/max*100)}%"></div></div></div>`).join("") || '<div class="note">ยังไม่มีรายจ่าย</div>';
+}
+function collect(){
+ return {days:days.value,income:getRows("income"),expense:getRows("expense")};
+}
+function saveData(){localStorage.setItem("budgetData",JSON.stringify(collect()));alert("บันทึกข้อมูลแล้ว")}
+function loadData(){
+ const d=JSON.parse(localStorage.getItem("budgetData")||"null"); if(!d){alert("ยังไม่มีข้อมูลที่บันทึก");return}
+ incomeList.innerHTML="";expenseList.innerHTML="";days.value=d.days||31;
+ d.income.forEach(x=>addRow("income",[x.name,x.amount,x.type])); d.expense.forEach(x=>addRow("expense",[x.name,x.amount,x.type])); calculate();
+}
+function resetData(){
+ if(!confirm("ต้องการล้างข้อมูลทั้งหมดหรือไม่?"))return;
+ localStorage.removeItem("budgetData"); location.reload();
+}
+function exportCSV(){
+ const all=[...getRows("income").map(x=>["รายรับ",x.name,x.amount,x.type,x.monthly]),...getRows("expense").map(x=>["รายจ่าย",x.name,x.amount,x.type,x.monthly])];
+ let csv="\uFEFFประเภท,รายการ,จำนวนเงิน,หน่วย,คิดเป็นต่อเดือน\n"+all.map(r=>r.map(v=>`"${String(v).replaceAll('"','""')}"`).join(",")).join("\n");
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download="รายรับ-รายจ่าย.csv";a.click();
+}
+defaults.income.forEach(x=>addRow("income",x)); defaults.expense.forEach(x=>addRow("expense",x)); calculate();
+</script>
+</body>
+</html>
